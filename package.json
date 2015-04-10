@@ -1,0 +1,29 @@
+{
+  "name": "mailnotif",
+  "version": "1.0.0",
+  "description": "Get notifications for mail",
+  "dependencies": {
+    "inbox": "^1.1.59",
+    "libnotify": "^1.0.4"
+  },
+  "scripts": {
+    "start": "node mailnotif"
+  },
+  "bin": {
+    "mailnotif": "./mailnotif.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/clehner/mailnotif"
+  },
+  "keywords": [
+    "mail",
+    "imap",
+    "notify"
+  ],
+  "author": "Charles Lehner (http://celehner.com/)",
+  "license": "GPL-3.0+",
+  "bugs": {
+    "url": "https://github.com/clehner/mailnotif/issues"
+  }
+}
