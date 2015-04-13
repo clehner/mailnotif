@@ -33,7 +33,8 @@ var mailclient = inbox.createConnection(config.imap.port,
   config.imap.host, config.imap.options)
 
 function escapeHTML (text) {
-  return text.replace(/</g, '&lt;')
+  return text.replace(/&/g, '&amp;')
+   .replace(/</g, '&lt;')
 }
 
 function handleMail (message) {
