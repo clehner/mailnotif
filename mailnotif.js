@@ -70,7 +70,14 @@ mailclient.on('disconnect', function () {
 })
 
 mailclient.on('error', function (err) {
-  console.error(err.stack, err)
+  if (err.code === 'EHOSTUNREACH') {
+    console.error('Host unreachable')
+  } else if (err.code === 'ETIMEDOUT' || err.errorType === 'TimeoutError') {
+    console.log('Connection timed out. Reconnecting.')
+    mailclient.connect()
+  } else {
+    console.error(err.stack, err)
+  }
 })
 
 mailclient.on('new', function (message) {
