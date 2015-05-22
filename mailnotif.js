@@ -38,7 +38,8 @@ function escapeHTML (text) {
 }
 
 function handleMail (message) {
-  var from = message.from.name + ' <' + message.from.address + '>'
+  var from = message.from ?
+    message.from.name + ' <' + message.from.address + '>' : ''
   console.log('[' + message.date.toLocaleTimeString() + ']',
     'Handling message from', from)
   var body = '<span color="#D6A046">' + escapeHTML(from) + '</span>\n\n' +
