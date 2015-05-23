@@ -1,11 +1,14 @@
 # mailnotif
 
-New mail notifications for IMAP accounts, using libnotify.
+New mail notifications for IMAP accounts, using libnotify. Auto reconnect aided
+by NetworkManager.
 
-## TODO
+## Usage
 
-- Fix error handling and reconnecting
-- Detect network status changes, e.g. using Network-Manager and ((dbus)[https://github.com/sidorares/node-dbus])
+```
+npm install -g mailnotif
+mailnotif
+```
 
 ## License
 
