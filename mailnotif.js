@@ -19,6 +19,7 @@
 
 var inbox = require('inbox')
 var libnotify = require('libnotify')
+var nmState = require('nm-state')
 
 try {
   var config = require('./config')
@@ -28,9 +29,6 @@ try {
     'and edit as needed.')
   process.exit(1)
 }
-
-var mailclient = inbox.createConnection(config.imap.port,
-  config.imap.host, config.imap.options)
 
 function escapeHTML (text) {
   return text.replace(/&/g, '&amp;')
@@ -54,7 +52,7 @@ function isMailRecent (message) {
   return message.flags.indexOf('\\Recent') > -1
 }
 
-mailclient.on('connect', function () {
+function onMailClientConnect () {
   console.log('Successfully connected to server')
   mailclient.openMailbox('INBOX', {readOnly: true}, function (err, info) {
     if (err) return console.error(err)
@@ -64,13 +62,9 @@ mailclient.on('connect', function () {
       messages.filter(isMailRecent).forEach(handleMail)
     })
   })
-})
+}
 
-mailclient.on('disconnect', function () {
-  console.log('Disconnected from server')
-})
-
-mailclient.on('error', function (err) {
+function onMailClientError (err) {
   if (err.code === 'EHOSTUNREACH') {
     console.error('Host unreachable')
   } else if (err.code === 'ETIMEDOUT' || err.errorType === 'TimeoutError') {
@@ -79,15 +73,39 @@ mailclient.on('error', function (err) {
   } else {
     console.error(err.stack, err)
   }
+}
+
+function initMailClient (client) {
+  client.on('connect', onMailClientConnect)
+  client.on('error', onMailClientError)
+  client.on('disconnect', function () {
+    console.log('Disconnected from server')
+  })
+  client.on('new', handleMail)
+}
+
+process.on('uncaughtException', function (err) {
+  console.error('error', err)
 })
 
-mailclient.on('new', function (message) {
-  handleMail(message)
+var mailclient
+
+nmState(function (state) {
+  if (state === nmState.CONNECTED_GLOBAL) {
+    setTimeout(function () {
+      console.log('Connecting to', config.imap.host)
+      mailclient = inbox.createConnection(config.imap.port,
+        config.imap.host, config.imap.options)
+      initMailClient(mailclient)
+      mailclient.connect()
+    }, 250)
+  } else if (state <= nmState.CONNECTING) {
+    console.log('Disconnected')
+    if (mailclient) mailclient._close()
+  }
 })
 
-mailclient.connect()
-console.log('Connecting to', config.imap.host)
-
+/*
 process.stdin.on('data', function () {})
 process.stdin.on('end', function () {
   console.log('Closing connection')
@@ -96,3 +114,4 @@ process.stdin.on('end', function () {
     console.log('Disconnected.')
   })
 })
+*/
