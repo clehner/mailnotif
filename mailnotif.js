@@ -20,6 +20,7 @@
 var inbox = require('inbox')
 var libnotify = require('libnotify')
 var nmState = require('nm-state')
+var wpaState = require('wpa_state')
 
 try {
   var config = require('./config')
@@ -89,9 +90,12 @@ process.on('uncaughtException', function (err) {
 })
 
 var mailclient
+var isOnline
 
-nmState(function (state) {
-  if (state === nmState.CONNECTED_GLOBAL) {
+function onlineStateChanged(online) {
+  if (online == isOnline) return;
+  isOnline = online;
+  if (isOnline) {
     setTimeout(function () {
       console.log('Connecting to', config.imap.host)
       mailclient = inbox.createConnection(config.imap.port,
@@ -99,10 +103,23 @@ nmState(function (state) {
       initMailClient(mailclient)
       mailclient.connect()
     }, 250)
-  } else if (state <= nmState.CONNECTING) {
+  } else {
+    onlineStateChanged(false)
     console.log('Disconnected')
     if (mailclient) mailclient._close()
   }
+}
+
+nmState(function (state) {
+  if (state === nmState.CONNECTED_GLOBAL) {
+    onlineStateChanged(true)
+  } else if (state <= nmState.CONNECTING) {
+    onlineStateChanged(false)
+  }
+})
+
+new WpaState('wlan0').on('state', function (state) {
+  onlineStateChanged(state === 'completed')
 })
 
 /*
