@@ -3,7 +3,6 @@
   "version": "1.2.0",
   "description": "Get notifications for mail",
   "dependencies": {
-    "dbus": "^0.2.10",
     "inbox": "^1.1.59",
     "libnotify": "^1.0.4",
     "wpa_state": "^1.0.0"
