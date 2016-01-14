@@ -20,7 +20,7 @@
 var inbox = require('inbox')
 var libnotify = require('libnotify')
 var nmState = require('nm-state')
-var wpaState = require('wpa_state')
+var WpaState = require('wpa_state')
 
 try {
   var config = require('./config')
@@ -86,7 +86,7 @@ function initMailClient (client) {
 }
 
 process.on('uncaughtException', function (err) {
-  console.error('error', err)
+  console.error(err.stack, err)
 })
 
 var mailclient
