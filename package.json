@@ -3,6 +3,7 @@
   "version": "1.2.0",
   "description": "Get notifications for mail",
   "dependencies": {
+    "connman-api": "^0.3.3",
     "inbox": "^1.1.59",
     "libnotify": "^1.0.4",
     "wpa_state": "^1.0.0"

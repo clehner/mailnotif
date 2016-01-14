@@ -21,6 +21,7 @@ var inbox = require('inbox')
 var libnotify = require('libnotify')
 var nmState = require('nm-state')
 var WpaState = require('wpa_state')
+var ConnMan = require('connman-api')
 
 try {
   var config = require('./config')
@@ -122,6 +123,26 @@ nmState(function (state) {
 
 new WpaState('wlan0').on('state', function (state) {
   onlineStateChanged(state === 'completed')
+})
+
+var connman = new ConnMan()
+connman.init(function(a, b) {
+  if (!connman.getOnlineService)
+    return console.error("connman error")
+  connman.getOnlineService(function(err, service) {
+    if (err)
+      return
+
+    connman.getConnection(service.serviceName, function(err, conn) {
+
+      connman.on('PropertyChanged', function(name, value) {
+
+        console.log('Property Changed:')
+        console.log(name, value)
+      })
+    })
+
+  })
 })
 
 var isOnline = true
