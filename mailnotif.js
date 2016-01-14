@@ -92,17 +92,19 @@ process.on('uncaughtException', function (err) {
 var mailclient
 var isOnline
 
+function connectMail() {
+  console.log('Connecting to', config.imap.host)
+  mailclient = inbox.createConnection(config.imap.port,
+    config.imap.host, config.imap.options)
+  initMailClient(mailclient)
+  mailclient.connect()
+}
+
 function onlineStateChanged(online) {
   if (online == isOnline) return;
   isOnline = online;
   if (isOnline) {
-    setTimeout(function () {
-      console.log('Connecting to', config.imap.host)
-      mailclient = inbox.createConnection(config.imap.port,
-        config.imap.host, config.imap.options)
-      initMailClient(mailclient)
-      mailclient.connect()
-    }, 250)
+    setTimeout(connectMail, 250)
   } else {
     onlineStateChanged(false)
     console.log('Disconnected')
@@ -121,6 +123,9 @@ nmState(function (state) {
 new WpaState('wlan0').on('state', function (state) {
   onlineStateChanged(state === 'completed')
 })
+
+var isOnline = true
+connectMail()
 
 /*
 process.stdin.on('data', function () {})
