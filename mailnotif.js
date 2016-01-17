@@ -87,6 +87,7 @@ function handleMail (message) {
   })
   notif.on('action', function (action) {
     actions[action](message)
+    notif.close()
   })
   notif.push()
 }
