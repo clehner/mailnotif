@@ -20,7 +20,6 @@
 var fs = require('fs')
 var spawn = require('child_process').spawn
 var inbox = require('inbox')
-var pkg = require('./package')
 var notifications = require('freedesktop-notifications')
 
 var mailclient
@@ -51,10 +50,8 @@ var actions = {
     var filename = '/tmp/mail-' + uid + '-' + msg.modSeq + '.eml'
     mailclient.createMessageStream(uid)
     .on('end', function () {
-      console.log(config.mailer.cmd, config.mailer.args.concat(filename))
-      var open = spawn(config.mailer.cmd, config.mailer.args.concat(filename))
-      open.stdout.on('data', console.log.bind(console, 'mailer:'))
-      open.stderr.on('data', console.log.bind(console, 'mailer:'))
+      var args = config.mailer.args.concat(filename)
+      var open = spawn(config.mailer.cmd, args, {stdio: 'inherit'})
       open.on('close', function (code) {
         if (code) return console.error('Mailer returned', code)
         mailclient.addFlags(uid, '\\Seen', function (err) {
@@ -100,7 +97,7 @@ function isMailRecent (message) {
 
 function onMailClientConnect () {
   console.log('Successfully connected to server')
-  mailclient.openMailbox('INBOX', {readOnly: true}, function (err, info) {
+  mailclient.openMailbox('INBOX', {readOnly: false}, function (err, info) {
     if (err) return console.error(err)
     console.log('Opened ' + info.path + ':', info.count)
     mailclient.listMessages(-25, function (err, messages) {
