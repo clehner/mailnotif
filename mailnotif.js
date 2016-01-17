@@ -91,7 +91,7 @@ process.on('uncaughtException', function (err) {
 })
 
 var mailclient
-var isOnline
+var isOnline = false
 
 function connectMail() {
   console.log('Connecting to', config.imap.host)
@@ -126,35 +126,16 @@ new WpaState('wlan0').on('state', function (state) {
 })
 
 var connman = new ConnMan()
-connman.init(function(a, b) {
-  if (!connman.getOnlineService)
-    return console.error("connman error")
-  connman.getOnlineService(function(err, service) {
-    if (err)
-      return
-
-    connman.getConnection(service.serviceName, function(err, conn) {
-
-      connman.on('PropertyChanged', function(name, value) {
-
-        console.log('Property Changed:')
-        console.log(name, value)
-      })
-    })
-
+connman.init(function() {
+  function stateChanged(state) {
+    onlineStateChanged(state === 'online')
+  }
+  connman.getProperties(function (err, props) {
+    if (err) return console.error(err)
+      stateChanged(props.State)
+  });
+  connman.on('PropertyChanged', function (name, value) {
+    if (name === 'State')
+      stateChanged(value)
   })
 })
-
-var isOnline = true
-connectMail()
-
-/*
-process.stdin.on('data', function () {})
-process.stdin.on('end', function () {
-  console.log('Closing connection')
-  mailclient.close()
-  mailclient.on('close', function () {
-    console.log('Disconnected.')
-  })
-})
-*/
