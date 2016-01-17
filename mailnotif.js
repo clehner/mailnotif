@@ -22,62 +22,7 @@ var nmState = require('nm-state')
 var WpaState = require('wpa_state')
 var ConnMan = require('connman-api')
 var pkg = require('./package')
-var gir = require('gir')
-var Gio = gir.load('Gio')
-var GLib = gir.load('GLib')
-
-// var loop = new GLib.MainLoop(null, false)
-
-var app = new Gio.Application(pkg.name)
-app.on('activate', function() {
-  console.log('app activated')
-  handleMail(require("./msg"))
-})
-/*
-app.on('startup', function() {
-  console.log('startup')
-})
-*/
-app.register()
-
-var openAction = new Gio.SimpleAction({
-  name: 'open',
-  'parameter-type': new GLib.VariantType('s')
-})
-openAction.on('activate', function() {
-  console.log('activate open');
-})
-app.add_action(openAction)
-// openAction.activate(new GLib.Variant('s', 'hi'))
-//
-
-var markReadAction = new Gio.SimpleAction({
-  name: 'markread'
-})
-markReadAction.on('activate', function() {
-  console.log('activate markread');
-})
-app.add_action(markReadAction)
-
-console.log('hold')
-app.hold()
-console.log('run')
-app.run(null)
-console.log('done')
-
-/*
-var actionEntries = [
-  {
-    activate: null,
-    change_state: null,
-    name: 'open',
-    padding: [0],
-    parameter_type: 's',
-    state: null
-  }
-]
-// app.add_action_entries(actionEntries, actionEntries.length, null)
-*/
+var notifications = require('freedesktop-notifications')
 
 try {
   var config = require('./config')
@@ -101,18 +46,25 @@ function handleMail (message) {
     'Handling message from', from)
   var body = '<span color="#D6A046">' + escapeHTML(from) + '</span>\n\n' +
     escapeHTML(message.title)
-  var n = new Gio.Notification('')
-  n.set_title('New mail')
-  n.set_body(body)
-  n.add_button("Open", "app.open::" + message.UID)
-  n.add_button("Mark as read", "app.markread")
-  // n.add_button("Quit", "app.shutdown")
-  app.send_notification(id, n)
-  // loop.run()
+  var notif = notifications.createNotification({
+    appName: 'mail',
+    summary: 'New mail',
+    body: body,
+    actions: {
+      open: 'Open',
+      read: 'Mark as read'
+    }
+  })
+  notif.on('action', function (action) {
+    if (action == 'open') {
+    }
+  })
+  notif.push()
 }
 
 if (process.argv[2] == 'test') {
   setTimeout(function () {
+    handleMail(require("./msg"))
   }, 10);
 
   /*
