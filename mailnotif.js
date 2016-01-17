@@ -17,12 +17,17 @@
  * along with mailnotif.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+var fs = require('fs')
+var spawn = require('child_process').spawn
 var inbox = require('inbox')
 var nmState = require('nm-state')
 var WpaState = require('wpa_state')
 var ConnMan = require('connman-api')
 var pkg = require('./package')
 var notifications = require('freedesktop-notifications')
+
+var mailclient
+var isOnline = false
 
 try {
   var config = require('./config')
@@ -37,6 +42,34 @@ function escapeHTML (text) {
   return text.replace(/&/g, '&amp;')
    .replace(/</g, '&lt;')
 }
+
+// Fetch a message and open it in a MUA
+var actions = {
+  open: function (msg) {
+    var uid = msg.UID
+    var filename = '/tmp/mail-' + uid + '-' + msg.modSeq + '.eml'
+    mailclient.createMessageStream(uid)
+    .on('end', function () {
+      console.log(config.mailer.cmd, config.mailer.args.concat(filename))
+      var open = spawn(config.mailer.cmd, config.mailer.args.concat(filename))
+      open.stdout.on('data', console.log.bind(console, 'mailer:'))
+      open.stderr.on('data', console.log.bind(console, 'mailer:'))
+      open.on('close', function (code) {
+        if (code) return console.error('Mailer returned', code)
+        mailclient.addFlags(uid, '\\Seen', function (err) {
+          if (err) console.error('Error marking message as seen', err)
+        })
+      })
+    })
+    .pipe(fs.createWriteStream(filename))
+  },
+  read: function (msg) {
+    mailclient.addFlags(msg.UID, '\\Seen', function (err) {
+      if (err) console.error('Error marking message as seen', err)
+    })
+  }
+}
+
 
 var id = Math.random().toString(36).substr(2)
 function handleMail (message) {
@@ -56,27 +89,18 @@ function handleMail (message) {
     }
   })
   notif.on('action', function (action) {
-    if (action == 'open') {
-    }
+    actions[action](message)
   })
   notif.push()
 }
 
+/*
 if (process.argv[2] == 'test') {
   setTimeout(function () {
     handleMail(require("./msg"))
-  }, 10);
-
-  /*
-  process.on('SIGINT', function () {
-      console.log('withdraw', id)
-    app.withdraw_notification(id)
-    setTimeout(function () {
-      process.exit()
-    }, 500)
-  });
-  */
+  }, 2000);
 }
+*/
 
 function isMailRecent (message) {
   return message.flags.indexOf('\\Recent') > -1
@@ -117,9 +141,6 @@ function initMailClient (client) {
 process.on('uncaughtException', function (err) {
   console.error(err.stack, err)
 })
-
-var mailclient
-var isOnline = false
 
 function connectMail() {
   console.log('Connecting to', config.imap.host)

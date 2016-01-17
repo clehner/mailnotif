@@ -8,5 +8,7 @@ exports.imap = {
       user: 'example@gmail.com',
       pass: 'example'
     }
-  }
+  },
+  mailer: 'sylpheed',
+  mailerArgs: ['--open']
 }
