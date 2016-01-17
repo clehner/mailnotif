@@ -35,6 +35,10 @@ try {
   process.exit(1)
 }
 
+process.on('uncaughtException', function (err) {
+  console.error(err.stack, err)
+})
+
 function escapeHTML (text) {
   return text.replace(/&/g, '&amp;')
    .replace(/</g, '&lt;')
@@ -67,7 +71,6 @@ var actions = {
   }
 }
 
-
 var id = Math.random().toString(36).substr(2)
 function handleMail (message) {
   var from = message.from ?
@@ -90,14 +93,6 @@ function handleMail (message) {
   })
   notif.push()
 }
-
-/*
-if (process.argv[2] == 'test') {
-  setTimeout(function () {
-    handleMail(require("./msg"))
-  }, 2000);
-}
-*/
 
 function isMailRecent (message) {
   return message.flags.indexOf('\\Recent') > -1
@@ -126,24 +121,18 @@ function onMailClientError (err) {
   }
 }
 
-function initMailClient (client) {
-  client.on('connect', onMailClientConnect)
-  client.on('error', onMailClientError)
-  client.on('disconnect', function () {
-    console.log('Disconnected from server')
-  })
-  client.on('new', handleMail)
+function onMailClientDisconnect (err) {
+  console.log('Disconnected from server')
 }
-
-process.on('uncaughtException', function (err) {
-  console.error(err.stack, err)
-})
 
 function connectMail() {
   console.log('Connecting to', config.imap.host)
   mailclient = inbox.createConnection(config.imap.port,
     config.imap.host, config.imap.options)
-  initMailClient(mailclient)
+  mailclient.on('connect', onMailClientConnect)
+  mailclient.on('error', onMailClientError)
+  mailclient.on('disconnect', onMailClientDisconnect)
+  mailclient.on('new', handleMail)
   mailclient.connect()
 }
 
@@ -153,7 +142,6 @@ function onlineStateChanged(online) {
   if (isOnline) {
     setTimeout(connectMail, 250)
   } else {
-    onlineStateChanged(false)
     console.log('Disconnected')
     if (mailclient) mailclient._close()
   }
