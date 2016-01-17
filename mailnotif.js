@@ -18,10 +18,66 @@
  */
 
 var inbox = require('inbox')
-var libnotify = require('libnotify')
 var nmState = require('nm-state')
 var WpaState = require('wpa_state')
 var ConnMan = require('connman-api')
+var pkg = require('./package')
+var gir = require('gir')
+var Gio = gir.load('Gio')
+var GLib = gir.load('GLib')
+
+// var loop = new GLib.MainLoop(null, false)
+
+var app = new Gio.Application(pkg.name)
+app.on('activate', function() {
+  console.log('app activated')
+  handleMail(require("./msg"))
+})
+/*
+app.on('startup', function() {
+  console.log('startup')
+})
+*/
+app.register()
+
+var openAction = new Gio.SimpleAction({
+  name: 'open',
+  'parameter-type': new GLib.VariantType('s')
+})
+openAction.on('activate', function() {
+  console.log('activate open');
+})
+app.add_action(openAction)
+// openAction.activate(new GLib.Variant('s', 'hi'))
+//
+
+var markReadAction = new Gio.SimpleAction({
+  name: 'markread'
+})
+markReadAction.on('activate', function() {
+  console.log('activate markread');
+})
+app.add_action(markReadAction)
+
+console.log('hold')
+app.hold()
+console.log('run')
+app.run(null)
+console.log('done')
+
+/*
+var actionEntries = [
+  {
+    activate: null,
+    change_state: null,
+    name: 'open',
+    padding: [0],
+    parameter_type: 's',
+    state: null
+  }
+]
+// app.add_action_entries(actionEntries, actionEntries.length, null)
+*/
 
 try {
   var config = require('./config')
@@ -37,6 +93,7 @@ function escapeHTML (text) {
    .replace(/</g, '&lt;')
 }
 
+var id = Math.random().toString(36).substr(2)
 function handleMail (message) {
   var from = message.from ?
     message.from.name + ' <' + message.from.address + '>' : ''
@@ -44,10 +101,29 @@ function handleMail (message) {
     'Handling message from', from)
   var body = '<span color="#D6A046">' + escapeHTML(from) + '</span>\n\n' +
     escapeHTML(message.title)
-  libnotify.notify(body, {
-    title: 'New mail',
-    time: 86400
-  })
+  var n = new Gio.Notification('')
+  n.set_title('New mail')
+  n.set_body(body)
+  n.add_button("Open", "app.open::" + message.UID)
+  n.add_button("Mark as read", "app.markread")
+  // n.add_button("Quit", "app.shutdown")
+  app.send_notification(id, n)
+  // loop.run()
+}
+
+if (process.argv[2] == 'test') {
+  setTimeout(function () {
+  }, 10);
+
+  /*
+  process.on('SIGINT', function () {
+      console.log('withdraw', id)
+    app.withdraw_notification(id)
+    setTimeout(function () {
+      process.exit()
+    }, 500)
+  });
+  */
 }
 
 function isMailRecent (message) {
@@ -113,6 +189,7 @@ function onlineStateChanged(online) {
   }
 }
 
+if (0) {
 nmState(function (state) {
   if (state === nmState.CONNECTED_GLOBAL) {
     onlineStateChanged(true)
@@ -139,3 +216,4 @@ connman.init(function() {
       stateChanged(value)
   })
 })
+}
