@@ -1,3 +1,10 @@
+exports.network = {
+  // Uncomment one of these to enable auto-connecting
+  // networkManager: true,
+  // wpaSupplicant: 'wlan0',
+  // connman: true
+};
+
 exports.imap = {
   host: 'imap.gmail.com',
   port: 993,

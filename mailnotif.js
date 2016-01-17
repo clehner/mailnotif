@@ -20,9 +20,6 @@
 var fs = require('fs')
 var spawn = require('child_process').spawn
 var inbox = require('inbox')
-var nmState = require('nm-state')
-var WpaState = require('wpa_state')
-var ConnMan = require('connman-api')
 var pkg = require('./package')
 var notifications = require('freedesktop-notifications')
 
@@ -162,31 +159,44 @@ function onlineStateChanged(online) {
   }
 }
 
-if (0) {
-nmState(function (state) {
-  if (state === nmState.CONNECTED_GLOBAL) {
-    onlineStateChanged(true)
-  } else if (state <= nmState.CONNECTING) {
-    onlineStateChanged(false)
-  }
-})
-
-new WpaState('wlan0').on('state', function (state) {
-  onlineStateChanged(state === 'completed')
-})
-
-var connman = new ConnMan()
-connman.init(function() {
-  function stateChanged(state) {
-    onlineStateChanged(state === 'online')
-  }
-  connman.getProperties(function (err, props) {
-    if (err) return console.error(err)
-      stateChanged(props.State)
-  });
-  connman.on('PropertyChanged', function (name, value) {
-    if (name === 'State')
-      stateChanged(value)
+if (config.networkManager) {
+  var nmState = require('nm-state')
+  nmState(function (state) {
+    if (state === nmState.CONNECTED_GLOBAL) {
+      onlineStateChanged(true)
+    } else if (state <= nmState.CONNECTING) {
+      onlineStateChanged(false)
+    }
   })
-})
+}
+
+if (config.wpaSupplicant) {
+  var WpaState = require('wpa_state')
+  var iface = config.wpaSupplicant
+  new WpaState(iface).on('state', function (state) {
+    onlineStateChanged(state === 'completed')
+  })
+}
+
+if (config.connman) {
+  var ConnMan = require('connman-api')
+  var connman = new ConnMan()
+  connman.init(function() {
+    function stateChanged(state) {
+      onlineStateChanged(state === 'online')
+    }
+    connman.getProperties(function (err, props) {
+      if (err) return console.error(err)
+        stateChanged(props.State)
+    });
+    connman.on('PropertyChanged', function (name, value) {
+      if (name === 'State')
+        stateChanged(value)
+    })
+  })
+}
+
+if (!config.networkManager && !config.wpaSupplicant && !config.connman) {
+  // no network service. connect immediately
+  connectMail()
 }
