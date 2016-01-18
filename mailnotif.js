@@ -70,73 +70,72 @@ function mailHasRecipient(mail, rcpt) {
   })
 }
 
-// Fetch a message and open it in a MUA
-var actions = {
-  open: function (msg) {
-    var uid = msg.UID
-    var filename = '/tmp/mail-' + uid + '-' + msg.modSeq
-    var msgStream = mailclient.createMessageStream(uid)
+function markMessageAsRead(msg) {
+  mailclient.addFlags(msg.UID, '\\Seen', function (err) {
+    if (err)
+      console.error('Error marking message as seen', err)
+  })
+}
 
-    if (config.viewer.full) {
-      msgStream.on('end', function (mail) {
-        console.log('end')
-        viewFile(filename, 'full', onViewerClose)
-      })
-      msgStream.pipe(fs.createWriteStream(filename))
+// Fetch a message and open it in an external program
+function openMessage(msg) {
+  var filename = '/tmp/mail-' + msg.UID + '-' + msg.modSeq
+  var msgStream = mailclient.createMessageStream(msg.UID)
 
-    } else {
-      msgStream.pipe(new MailParser({streamAttachments: true}))
-      .on('end', function (mail) {
-        var type, body
+  if (config.viewer.full) {
+    msgStream.on('end', function (mail) {
+      console.log('end')
+      viewFile(filename, 'full', onViewerClose)
+    })
+    msgStream.pipe(fs.createWriteStream(filename))
 
-        if (mail.html) {
-          filename += '.html'
-          type = 'html'
-          body = mail.html
-        } else {
-          filename += '.eml'
-          type = 'text'
+  } else {
+    // Parse the mail and open either the text or html part
+    msgStream.pipe(new MailParser({streamAttachments: true}))
+    .on('end', function (mail) {
+      var type, body
 
-          // Only show Delivered-To address if it is not in the recipients
-          var deliveredTo = mail.headers['delivered-to']
-          if (mailHasRecipient(mail, deliveredTo))
-            deliveredTo = ''
+      if (mail.html) {
+        filename += '.html'
+        type = 'html'
+        body = mail.html
 
-          body = [
-            'From: ' + addrsToString(mail.from),
-            'To: ' + addrsToString(mail.to || message.to),
-            deliveredTo && 'Delivered-To: ' + deliveredTo,
-            mail.cc && 'Cc: ' + addrsToString(mail.cc),
-            mail.bcc && 'Bcc: ' + addrsToString(mail.bcc),
-            mail.subject && 'Subject: ' + mail.subject,
-            'Date: ' + msg.date || msg.data,
-          ].filter(Boolean).join('\n') + '\n\n' + mail.text
-        }
+      } else {
+        filename += '.eml'
+        type = 'text'
 
-        fs.writeFile(filename, body, function (err) {
-          if (err)
-            return console.error(err)
-          viewFile(filename, type, onViewerClose)
-        })
-      })
-    }
+        // Only show Delivered-To address if it is not in the recipients
+        var deliveredTo = mail.headers['delivered-to']
+        if (mailHasRecipient(mail, deliveredTo))
+          deliveredTo = ''
 
-    function onViewerClose(code) {
-      if (code)
-        console.error('Viewer returned', code)
-      else
-        mailclient.addFlags(uid, '\\Seen', function (err) {
-          if (err) console.error('Error marking message as seen', err)
-        })
-      fs.unlink(filename, function (err) {
+        body = [
+          'From: ' + addrsToString(mail.from),
+          'To: ' + addrsToString(mail.to || message.to),
+          deliveredTo && 'Delivered-To: ' + deliveredTo,
+          mail.cc && 'Cc: ' + addrsToString(mail.cc),
+          mail.bcc && 'Bcc: ' + addrsToString(mail.bcc),
+          mail.subject && 'Subject: ' + mail.subject,
+          'Date: ' + msg.date || msg.data,
+        ].filter(Boolean).join('\n') + '\n\n' + mail.text
+      }
+
+      fs.writeFile(filename, body, function (err) {
         if (err)
-          console.error(err)
+          return console.error(err)
+        viewFile(filename, type, onViewerClose)
       })
-    }
-  },
-  read: function (msg) {
-    mailclient.addFlags(msg.UID, '\\Seen', function (err) {
-      if (err) console.error('Error marking message as seen', err)
+    })
+  }
+
+  function onViewerClose(code) {
+    if (code)
+      console.error('Viewer returned', code)
+    else
+      markMessageAsRead(msg)
+    fs.unlink(filename, function (err) {
+      if (err)
+        console.error(err)
     })
   }
 }
@@ -159,7 +158,10 @@ function handleMail (message) {
     }
   })
   notif.on('action', function (action) {
-    actions[action](message)
+    if (action == 'open')
+      openMessage(message)
+    else if (action == 'read')
+      markMessageAsRead(message)
     notif.close()
   })
   notif.push()
