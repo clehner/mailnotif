@@ -1,12 +1,13 @@
 {
   "name": "mailnotif",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Get notifications for mail",
   "dependencies": {
     "connman-api": "^0.3.3",
     "freedesktop-notifications": "^1.2.1",
     "inbox": "^1.1.59",
     "libnotify": "^1.0.4",
+    "mailparser": "^0.5.3",
     "nm-state": "^1.0.0",
     "wpa_state": "^1.0.0"
   },

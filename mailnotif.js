@@ -21,6 +21,7 @@ var fs = require('fs')
 var spawn = require('child_process').spawn
 var inbox = require('inbox')
 var notifications = require('freedesktop-notifications')
+var MailParser = require('mailparser').MailParser
 
 var mailclient
 var isOnline = false
@@ -43,23 +44,95 @@ function escapeHTML (text) {
    .replace(/</g, '&lt;')
 }
 
+function viewFile(filename, type, cb) {
+  var viewer = config.viewer[type]
+  var cmd = viewer[0]
+  var args = (viewer[1] || []).concat(filename)
+  var open = spawn(cmd, args, {stdio: 'inherit'})
+  open.on('close', cb)
+}
+
+function addrToString(addr) {
+  return addr.name && addr.name !== addr.address
+    ? addr.name + ' <' + addr.address + '>'
+    : addr.address
+}
+
+function addrsToString(addrs) {
+  return addrs.map(addrToString).join(', ')
+}
+
+function mailHasRecipient(mail, rcpt) {
+  return [mail.to, mail.cc, mail.bcc].some(function (addrs) {
+    return addrs && addrs.some(function (addr) {
+      return addr.address === rcpt
+    })
+  })
+}
+
 // Fetch a message and open it in a MUA
 var actions = {
   open: function (msg) {
     var uid = msg.UID
-    var filename = '/tmp/mail-' + uid + '-' + msg.modSeq + '.eml'
-    mailclient.createMessageStream(uid)
-    .on('end', function () {
-      var args = config.mailer.args.concat(filename)
-      var open = spawn(config.mailer.cmd, args, {stdio: 'inherit'})
-      open.on('close', function (code) {
-        if (code) return console.error('Mailer returned', code)
+    var filename = '/tmp/mail-' + uid + '-' + msg.modSeq
+    var msgStream = mailclient.createMessageStream(uid)
+
+    if (config.viewer.full) {
+      msgStream.on('end', function (mail) {
+        console.log('end')
+        viewFile(filename, 'full', onViewerClose)
+      })
+      msgStream.pipe(fs.createWriteStream(filename))
+
+    } else {
+      msgStream.pipe(new MailParser({streamAttachments: true}))
+      .on('end', function (mail) {
+        var type, body
+
+        if (mail.html) {
+          filename += '.html'
+          type = 'html'
+          body = mail.html
+        } else {
+          filename += '.eml'
+          type = 'text'
+
+          // Only show Delivered-To address if it is not in the recipients
+          var deliveredTo = mail.headers['delivered-to']
+          if (mailHasRecipient(mail, deliveredTo))
+            deliveredTo = ''
+
+          body = [
+            'From: ' + addrsToString(mail.from),
+            'To: ' + addrsToString(mail.to || message.to),
+            deliveredTo && 'Delivered-To: ' + deliveredTo,
+            mail.cc && 'Cc: ' + addrsToString(mail.cc),
+            mail.bcc && 'Bcc: ' + addrsToString(mail.bcc),
+            mail.subject && 'Subject: ' + mail.subject,
+            'Date: ' + msg.date || msg.data,
+          ].filter(Boolean).join('\n') + '\n\n' + mail.text
+        }
+
+        fs.writeFile(filename, body, function (err) {
+          if (err)
+            return console.error(err)
+          viewFile(filename, type, onViewerClose)
+        })
+      })
+    }
+
+    function onViewerClose(code) {
+      if (code)
+        console.error('Viewer returned', code)
+      else
         mailclient.addFlags(uid, '\\Seen', function (err) {
           if (err) console.error('Error marking message as seen', err)
         })
+      fs.unlink(filename, function (err) {
+        if (err)
+          console.error(err)
       })
-    })
-    .pipe(fs.createWriteStream(filename))
+    }
   },
   read: function (msg) {
     mailclient.addFlags(msg.UID, '\\Seen', function (err) {

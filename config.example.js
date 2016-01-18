@@ -15,7 +15,12 @@ exports.imap = {
       user: 'example@gmail.com',
       pass: 'example'
     }
-  },
-  mailer: 'sylpheed',
-  mailerArgs: ['--open']
+  }
+}
+
+exports.viewer = {
+  // full: ['sylpheed', ['--open']]
+  // text: ['xterm', ['-e', 'less']],
+  text: ['vim', ['-gR']],
+  html: ['sensible-browser']
 }
