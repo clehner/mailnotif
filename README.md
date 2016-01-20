@@ -1,7 +1,7 @@
 # mailnotif
 
-New mail notifications for IMAP accounts, using libnotify. Auto reconnect aided
-by NetworkManager and wpa_supplicant.
+New mail notifications for IMAP accounts. Auto reconnect aided by
+NetworkManager, wpa_supplicant, or ConnMan.
 
 ## Usage
 
